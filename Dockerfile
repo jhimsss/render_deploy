@@ -1,19 +1,21 @@
 FROM php:8.2-cli
 
-WORKDIR /app
+# Set working directory
+WORKDIR /var/www
 
-# Install dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
+    curl \
     libzip-dev \
     libpng-dev \
-    curl \
     libpq-dev \
-    nodejs npm \
+    nodejs \
+    npm \
     && docker-php-ext-install pdo pdo_pgsql zip
 
-# Install composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Copy project
@@ -23,11 +25,16 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # Install frontend dependencies
-RUN npm install
-RUN npm run build
+RUN npm install && npm run build
 
-# Expose port
+# Fix permissions
+RUN chmod -R 775 storage bootstrap/cache
+
+# Expose port for Render
 EXPOSE 10000
 
-# Start Laravel
-CMD sleep 5 && php artisan migrate --force && php -S 0.0.0.0:10000 -t public
+# Start application
+CMD php artisan config:clear && \
+    php artisan cache:clear && \
+    php artisan migrate --force && \
+    php artisan serve --host=0.0.0.0 --port=$PORT
