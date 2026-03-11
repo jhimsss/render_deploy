@@ -30,11 +30,18 @@ RUN npm install && npm run build
 # Fix permissions
 RUN chmod -R 775 storage bootstrap/cache
 
+# Set environment variables for Laravel
+ENV APP_ENV=production
+ENV APP_DEBUG=false
+
+# Generate app key and clear caches **at build time**
+RUN php artisan key:generate \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
 # Expose port for Render
 EXPOSE 10000
 
-# Start application
-CMD php artisan config:clear && \
-    php artisan cache:clear && \
-    php artisan migrate --force && \
-    php artisan serve --host=0.0.0.0 --port=$PORT
+# Start Laravel at runtime (only serve, no migrations or cache clearing here)
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
